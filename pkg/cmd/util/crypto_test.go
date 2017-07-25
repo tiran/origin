@@ -18,3 +18,15 @@ func TestPrivateKeysFromPEM(t *testing.T) {
 		t.Fatalf("didn't extract results: %s", result)
 	}
 }
+
+func TestGeneratePassword(t *testing.T) {
+	charset := []byte("abcdefghijlkmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+	pwlen := 10
+	result, err := GeneratePassword(pwlen, charset)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result) != pwlen {
+		t.Fatalf("Expected %d chars, got %d", pwlen, len(result))
+	}
+}

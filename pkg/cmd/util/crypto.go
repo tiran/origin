@@ -2,10 +2,12 @@ package util
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"fmt"
+	"io"
 	"io/ioutil"
 )
 
@@ -97,4 +99,41 @@ func PrivateKeysFromPEM(pemCerts []byte) ([]byte, error) {
 		}
 	}
 	return buf.Bytes(), nil
+}
+
+// Generate a random password from a cryptographically secure PRNG
+func GeneratePassword(pwlen int, charset []byte) (string, error) {
+	if pwlen <= 0 {
+		return "", errors.New("pwlen must be larger than 0.")
+	}
+	cslen := len(charset)
+	if cslen > 255 || cslen == 0 {
+		return "", errors.New("charset is empty or has more than 255 runes.")
+	}
+	// The mask is used to map each rune to multiple values of each random
+	// byte. In case the length of the charset is not a power of 2, some
+	// random values must be ignored in order to archive an equal
+	// distribution.
+	randmask := byte(cslen)
+	randmax := byte(256 - (256 % cslen))
+	// Read more random bytes to compensate for ignored values. It's cheaper
+	// to read a little more data than to perform multiple syscalls.
+	randbytes := make([]byte, pwlen+(pwlen/2))
+	pw := make([]byte, pwlen)
+	i := 0
+	for {
+		if _, err := io.ReadFull(rand.Reader, randbytes); err != nil {
+			return "", err
+		}
+		for _, b := range randbytes {
+			if b >= randmax {
+				continue
+			}
+			pw[i] = charset[b%randmask]
+			i++
+			if i == pwlen {
+				return string(pw), nil
+			}
+		}
+	}
 }

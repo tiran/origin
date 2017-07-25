@@ -3,12 +3,10 @@ package router
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"os"
 	"path"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
@@ -632,7 +630,10 @@ func RunCmdRouter(f *clientcmd.Factory, cmd *cobra.Command, out, errout io.Write
 	}
 
 	if len(cfg.StatsPassword) == 0 {
-		cfg.StatsPassword = generateStatsPassword()
+		cfg.StatsPassword, err = generateStatsPassword()
+		if err != nil {
+			return fmt.Errorf("router could not be created, error creating password: %v", err)
+		}
 		if !cfg.Action.ShouldPrint() {
 			fmt.Fprintf(errout, "info: password for stats user %s has been set to %s\n", cfg.StatsUsername, cfg.StatsPassword)
 		}
@@ -874,16 +875,9 @@ func generateRoleBindingName(name string) string {
 }
 
 // generateStatsPassword creates a random password.
-func generateStatsPassword() string {
-	rand := rand.New(rand.NewSource(time.Now().UTC().UnixNano()))
-	allowableChars := []rune("abcdefghijlkmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
-	allowableCharLength := len(allowableChars)
-	password := []string{}
-	for i := 0; i < 10; i++ {
-		char := allowableChars[rand.Intn(allowableCharLength)]
-		password = append(password, string(char))
-	}
-	return strings.Join(password, "")
+func generateStatsPassword() (string, error) {
+	allowableChars := []byte("abcdefghijlkmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+	return cmdutil.GeneratePassword(10, allowableChars)
 }
 
 func validateServiceAccount(client kclientset.Interface, ns string, serviceAccount string, hostNetwork, hostPorts bool) error {
